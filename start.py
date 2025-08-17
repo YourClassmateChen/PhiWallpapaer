@@ -75,6 +75,9 @@ def read_all() -> None:
     global path_pic
     with open("./lib/path_pic", "r") as f:
         path_pic = f.read()
+    global video_speed
+    with open("./lib/speed", "r") as f:
+        video_speed = int(f.read())
 
 
 read_all()
@@ -94,6 +97,7 @@ def cv2_window_name_updata() -> None:
     """
     global cv2_window_name
     cv2_window_name = "Video_Window_" + str(open_times)
+    print(f"cv2win:{cv2_window_name}")
 
 
 cv2_window_name_updata()
@@ -139,19 +143,20 @@ def find_worker_w_without_shelldll_defview() -> any:
         try:
             # 获取窗口类名
             class_name = GetClassName(hwnd)
-            if class_name == "WorkerW" and IsWindowVisible(hwnd):
-                # 枚举 WorkerW 的子窗口
+            if class_name == "Progman":
+                # 枚举 Progman 的子窗口
                 child_hwnd_list = []
                 EnumChildWindows(hwnd, lambda child_hwnd, param: param.append(child_hwnd), child_hwnd_list)
 
                 contains_shelldll_defview = False
                 for child_hwnd in child_hwnd_list:
                     child_class_name = GetClassName(child_hwnd)
-                    if child_class_name == "SHELLDLL_DefView":
+                    if child_class_name == "WorkerW":
                         contains_shelldll_defview = True
+                        hwnd = child_hwnd
                         break
 
-                if not contains_shelldll_defview:
+                if contains_shelldll_defview:
                     return hwnd
         except Exception as e:
             print(f"Error accessing window {hwnd}: {e}")
@@ -189,14 +194,13 @@ def cv2_play(plan) -> None:
     hDC = GetDC(0)
     screen_width = GetDeviceCaps(hDC, DESKTOPHORZRES)
     screen_height = GetDeviceCaps(hDC, DESKTOPVERTRES)
-    for i in range(1000 * int(cap_total_fps)):
+    while video_cap.isOpened():
         if not close_symbol:
             break
 
         ret, frame = video_cap.read()
         if not ret:
             break
-
         # 获取帧的原始大小
         original_height, original_width, _ = frame.shape
 
@@ -234,8 +238,8 @@ def cv2_play(plan) -> None:
         # resizeWindow(cv2_window_name, 1920, 1080)
         moveWindow(cv2_window_name, 0, 0)
         resizeWindow(cv2_window_name, screen_width, screen_height)
-
         imshow(cv2_window_name, screen_frame)
+
         if just_open == 1:
             ShowWindow(FindWindow(None, cv2_window_name), SW_SHOWMINIMIZED)
             just_open = 2
@@ -289,6 +293,7 @@ def PlayWallpaer() -> None:
     :return: 无
     """
     global just_open
+    print("启动线程")
     start_thread()
     hwnd_PM = FindWindow("Progman", "Program Manager")
     SendMessageTimeout(hwnd_PM, 0x052C, 0, None, 0, 0x03E8)
@@ -349,18 +354,8 @@ def MainChangeVideo() -> None:
         pass
     else:
         write_into(path, "./lib/path_video")
-        msgbox("动态壁纸修改成功!", GUI_title, GUI_OK)
-        read_all()
-        # close
-        opening = 0
-        close_play()
-        windll.user32.SystemParametersInfoW(20, 0, path_pic, 3)
-        # open
-        just_open = 1
-        opening = 1
-        open_times += 1
-        cv2_window_name_updata()
-        PlayWallpaer()
+        msgbox("动态壁纸修改成功!\n(PhiWallpaper即将退出 重启PhiWallpaper应用修改)", GUI_title, GUI_OK)
+        MainExit()
 
 
 def MainChangePic() -> None:
@@ -373,8 +368,8 @@ def MainChangePic() -> None:
         pass
     else:
         write_into(path, "./lib/path_pic")
-        msgbox("静态壁纸修改成功!", GUI_title, GUI_OK)
-        read_all()
+        msgbox("静态壁纸修改成功!\n(PhiWallpaper即将退出 重启PhiWallpaper应用修改)", GUI_title, GUI_OK)
+        MainExit()
 
 
 def MainExit() -> None:
@@ -383,6 +378,7 @@ def MainExit() -> None:
     :return: 无
     """
     close_play()
+    windll.user32.SystemParametersInfoW(20, 0, path_pic, 3)
     exit_func()
     icon.stop()
 
@@ -393,17 +389,16 @@ def AboutGUI() -> None:
     :return: 无
     """
     about_input = buttonbox("""
-    PhiWallpaper γ
+    PhiWallpaper δ
     -呈阶梯状分布-
-    2025.2.5 最后维护
+    2025.8.18 最后维护
     """, GUI_title,
-                            ['联系作者:-呈阶梯状分布-', '作者个人网页'],
+                            ['github仓库'],
                             './lib/small_ico.png')
-    print(about_input)
-    if about_input == '联系作者:-呈阶梯状分布-':
-        system('start https://space.bilibili.com/1996208073')
-    elif about_input == '作者个人网页':
-        system('start https://yourclassmatechen.github.io/')
+    if about_input is None:
+        return
+    if about_input == 'github仓库':
+        system('start https://github.com/YourClassmateChen/PhiWallpaper')
     elif about_input == './lib/small_ico.png':
         msgbox('ヾ(≧ ▽ ≦)ゝ', GUI_title, GUI_OK)
         return
@@ -412,9 +407,9 @@ def AboutGUI() -> None:
 
 
 if __name__ == "__main__":
+    MainWallpaper()
     # 菜单栏与函数的设置
-    menu = (MenuItem('打开/关闭动态壁纸', MainWallpaper),
-            MenuItem('修改动态壁纸', MainChangeVideo),
+    menu = (MenuItem('修改动态壁纸', MainChangeVideo),
             MenuItem('修改静态壁纸', MainChangePic),
             MenuItem('关于PhiWallpaper', AboutGUI),
             MenuItem('退出PhiWallpaper', MainExit))

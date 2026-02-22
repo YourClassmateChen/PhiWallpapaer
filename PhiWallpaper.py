@@ -1,14 +1,16 @@
 """
 PhiWallpaper
 版本: v0.1.0-epsilon
-开发版本: v0.1.0-epsilon 第3次开发
-最后维护时间: 2026.1.8 00:06
+开发版本: v0.1.0-epsilon 第4次开发
+最后维护时间: 2026.2.23 02:49
 
 开发者: YourClassmateChen(呈阶梯状分布)
-开发环境: Python3.11
+开发环境: Python 3.11 64-bit
 本程序遵守 CC BY-SA 4.0 知识共享许可协议
-"""
 
+好用 可以 占内存
+
+"""
 # 开始引入库内函数
 from win32con import GWL_EXSTYLE, GWL_STYLE
 from win32con import WS_EX_LAYERED, WS_POPUP, WS_CHILD, WS_VISIBLE
@@ -20,6 +22,7 @@ from win32con import SW_SHOW, LWA_ALPHA, WM_PAINT
 
 from win32gui import GetDC, GetWindowLong, SetWindowLong, SetParent, FindWindow, SendMessage, FindWindowEx
 from win32gui import MoveWindow, ShowWindow, RedrawWindow, SetWindowPos, SetLayeredWindowAttributes
+from win32gui import GetClientRect
 
 from winreg import HKEY_CURRENT_USER, KEY_SET_VALUE, KEY_ALL_ACCESS, KEY_WRITE, KEY_CREATE_SUB_KEY, REG_SZ
 from winreg import SetValueEx, CloseKey, DeleteValue, OpenKey
@@ -28,10 +31,41 @@ from subprocess import STARTUPINFO, Popen, DEVNULL, STARTF_USESHOWWINDOW, SW_HID
 from easygui import msgbox, buttonbox, fileopenbox
 from win32print import GetDeviceCaps
 from time import sleep
-from sys import argv
+from sys import argv, exit
 from infi.systray import SysTrayIcon
 from webbrowser import open_new_tab
 from os.path import realpath, abspath, dirname, join, exists
+from os import environ
+from psutil import process_iter
+
+
+# 开始定义外部函数
+def get_window_client_size(hwnd):
+    """获取窗口客户区尺寸（渲染层实际尺寸）"""
+    if not hwnd:
+        return 0, 0
+    try:
+        rect = GetClientRect(hwnd)
+        return rect[2] - rect[0], rect[3] - rect[1]
+    except:
+        return 0, 0
+
+
+def wait_for_render_ready(hwnd, target_w, target_h, interval=0.1):
+    """
+    等待ffplay渲染层就绪（客户区尺寸匹配目标分辨率）
+    :param hwnd: ffplay窗口句柄
+    :param target_w: 屏幕宽度
+    :param target_h: 屏幕高度
+    :param interval: 检测间隔
+    :return: True=就绪，False=超时
+    """
+    while True:
+        client_w, client_h = get_window_client_size(hwnd)
+        # 渲染层就绪判定：客户区尺寸≥目标尺寸80%（兼容加载中的小幅偏差）
+        if client_w >= target_w * 0.8 and client_h >= target_h * 0.8:
+            return True
+        sleep(interval)
 
 
 # 开始定义用途型函数
@@ -46,6 +80,12 @@ def path_build(path) -> bytes:
     # 构建绝对路径
     file_path = join(current_dir, path)
     return file_path
+
+def is_program_running(program_name):
+    for process in process_iter(['name']):
+        if process.info['name'] == program_name:
+            return True
+    return False
 
 
 # 开始定义过程型函数
@@ -65,27 +105,30 @@ def PlayWallpaper() -> None:
     screen_h = GetDeviceCaps(hDC, DESKTOPVERTRES)  # 纵向分辨率
 
     ffplay_plan = path_build(r'ffmpeg\bin\ffplay.exe')  # 获取ffplay位置
-    canshu = f' \"{path_video}\"' \
+    canshu = r' -hwaccel vulkan' \
+             r' -flags2 fast' \
+             r' -avioflags direct' \
+             r' -lowres 1' \
+             r' -fast' \
              r' -an' \
              r' -noborder' \
-             r' -loglevel quiet' \
-             f' -x {screen_w} -y {screen_h}' \
+             r' -i' \
+             f' \"{path_video}\"' \
+             r' -loglevel panic' \
+             f' -x {str(screen_w)} -y {str(screen_h)}' \
              r' -loop 0' \
-             r' -enable_vulkan' \
              r' -crf 0' \
              r' -window_title "PhiWallpaper"' \
-             f' -vf \"scale={screen_w}:{screen_h}:force_original_aspect_ratio=increase, crop={screen_w}:{screen_h}\"' \
-             r' -i'  # 获取参数
+             f' -vf \"scale={screen_w}:{screen_h}:force_original_aspect_ratio=increase, crop={screen_w}:{screen_h}, setsar=1:1\" '
     Popen(ffplay_plan + canshu, startupinfo=startinfo_value)  # 创建视频播放线程(非阻塞)
 
     # 开始获取窗口句柄
     while True:
         hApplication = FindWindow("SDL_app", None)  # 循环查找视频窗口
         if hApplication:  # 找到后
-            if GetWindowLong(hApplication, GWL_STYLE):  # 完全打开
-                sleep(0.2)
-                break  # 进行下一步
-
+            if wait_for_render_ready(hApplication, screen_w, screen_h):
+                break
+        sleep(0.1)
     hProgman = FindWindow("Progman", None)  # 查找Progman窗口
     SendMessage(hProgman, 0x52c, 0, 0)  # 发送0x52c消息
     hSHELLDLL_DefView32 = FindWindowEx(hProgman, None, "SHELLDLL_DefView", None)  # 查找SHELLDLL_DefView
@@ -250,16 +293,26 @@ def SetPhiWallpaper(systray=None) -> None:
 about_info = """
                         PhiWallpaper epsilon
                         -呈阶梯状分布-
-                        2025.12.12 最后维护
+                        2026.2.23 最后维护
                         """
 is_playing = True  # 01广播 指示是否正在播放
 startinfo_value = STARTUPINFO()  # 创建启动信息对象
 startinfo_value.dwFlags |= STARTF_USESHOWWINDOW  # 使用显示类窗口属性
 startinfo_value.wShowWindow = SW_HIDE  # 设置不显示窗口
 
+# 开始设置环境变量
+# environ["SDL_VIDEODRIVER"] = "direct3d"  # 轻量级渲染驱动
+# environ["SDL_HINT_RENDER_BATCHING"] = "1"  # 渲染批处理（减少缓存）
+# environ["SDL_HINT_RENDER_SCALE_QUALITY"] = "0"  # 关闭缩放质量（省内存）
+
 # 开始主程序循环
 
 if __name__ == '__main__':  # 程序启动
+    # 防止多开
+    if is_program_running("ffplay.exe"):
+        msgbox("PhiWallpaper已经在系统托盘中了", "PhiWallpaper", "确认")
+        exit()
+
     PlayWallpaper()  # 启动动态壁纸
     menu_p = (
         ("开启/关闭", None, MainWallpaper),

@@ -14,3 +14,7 @@
 使用ffplay创建视频窗体<br>
 使用win32嵌入桌面<br>
 基于0x052C消息的动态壁纸软件<br>
+![](http://106.53.213.36/MyFiles/Image/1.png)
+![](http://106.53.213.36/MyFiles/Image/2.png)
+![](http://106.53.213.36/MyFiles/Image/3.png)
+![](http://106.53.213.36/MyFiles/Image/4.png)

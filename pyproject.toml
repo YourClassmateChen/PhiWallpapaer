@@ -1,0 +1,12 @@
+[project]
+name = "PhiWallpaper"
+version = "v0.1.0-epsilon-4"
+description = "基于Python的动态壁纸软件"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "easygui>=0.98.3",
+    "infi-systray>=0.1.12.1",
+    "psutil>=7.2.2",
+    "pywin32>=311",
+]

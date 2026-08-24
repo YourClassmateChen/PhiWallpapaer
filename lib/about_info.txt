@@ -1,3 +1,3 @@
-PhiWallpaper v0.2.0-beta.1
+PhiWallpaper v0.2.1-beta.1
 -呈阶梯状分布-
-2026.3.31 最后维护
+2026.8.25 最后维护

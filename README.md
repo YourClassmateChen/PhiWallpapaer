@@ -1,19 +1,16 @@
 # PhiWallpapaer
 ![](https://github.com/YourClassmateChen/PhiWallpapaer/blob/main/lib/small_ico.png)  
 **PhiWallpaper——基于Python的动态壁纸软件**<br>
-建议直接下载发行版中的压缩包<br>
+获取应用请下载发行版中的压缩包<br>
+获取源码克隆本仓库到本地<br>
 <a href="http://106.53.213.36/信息技术の教程/phiwallpaper使用指南">Wordpress博客-PhiWallpaper使用指南</a><br>
 当前已适配Windows11-24H2-26000的更新<br>
-仅支持Windows 11最新版本<br>
+最新版本兼容Windows 11 24H2+ / Windows 11 24H2- / Windows 10<br>
 启动程序后请查看系统托盘
 本程序结构太乱了，如果没大佬帮忙重构，大概率不会再有更新
 
 ----------------
 ## 关于PhiWallpaper
 使用ffplay创建视频窗体<br>
-使用win32嵌入桌面<br>
+使用pywin32嵌入桌面<br>
 基于0x052C消息的动态壁纸软件<br>
-![](http://106.53.213.36/MyFiles/Image/1.png)
-![](http://106.53.213.36/MyFiles/Image/2.png)
-![](http://106.53.213.36/MyFiles/Image/3.png)
-![](http://106.53.213.36/MyFiles/Image/4.png)

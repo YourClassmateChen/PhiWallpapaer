@@ -1,12 +1,13 @@
+# -*- coding: UTF-8 -*-
 """
 PhiWallpaper
-版本: v0.2.0-beta.1
-开发版本: v0.2.0-beta.1 第2次开发
-最后维护时间: 2026.3.31 22:47
+版本: v0.2.1-beta.1
+开发版本: v0.2.1-beta.1 第1次开发
+最后维护时间: 2026.8.25 00:55
 
 开发者: YourClassmateChen(呈阶梯状分布)
 开发环境: Python 3.11 64-bit
-本程序遵守 CC BY-SA 4.0 知识共享许可协议
+本程序遵守 CC BY-SA 4.0 知识共享许可协议~
 """
 # 开始引入原生库
 from threading import Thread
@@ -190,7 +191,7 @@ def PlayWallpaper() -> None:
     screen_w = GetDeviceCaps(hDC, DESKTOPHORZRES)  # 横向分辨率
     screen_h = GetDeviceCaps(hDC, DESKTOPVERTRES)  # 纵向分辨率
 
-    ffplay_plan = path_build(r'ffmpeg\bin\ffplay.exe')  # 获取ffplay位置
+    ffplay_plan = path_build(r'lib\ffplay.exe')  # 获取ffplay位置
     canshu = r' -hwaccel vulkan' \
              r' -flags2 fast' \
              r' -avioflags direct' \
@@ -206,6 +207,7 @@ def PlayWallpaper() -> None:
              r' -crf 0' \
              r' -window_title "PhiWallpaper"' \
              f' -vf \"scale={screen_w}:{screen_h}:force_original_aspect_ratio=increase, crop={screen_w}:{screen_h}, setsar=1:1\" '
+    print(ffplay_plan + canshu)
     Popen(ffplay_plan + canshu, startupinfo=startinfo_value)  # 创建视频播放线程(非阻塞)
 
     # 开始获取窗口句柄
@@ -224,18 +226,16 @@ def PlayWallpaper() -> None:
         print("Windows 10")
         system_vision = "Windows 10"
 
-        def find_workerw2(h, _) -> bool:
-            hdefview = FindWindowEx(h, None, "SHELLDLL_DefView", None)
-            if hdefview:
-                hworkerw = FindWindowEx(None, h, "WorkerW", None)
-                ShowWindow(hworkerw, SW_HIDE)
+        def EnumWindowsProc(h, l):
+            hdef = FindWindow(h, None, "SHELLDLL_DefView", None)
+            if hdef:
+                hwork = FindWindowEx(None, h, "WorkerW", None)
+                ShowWindow(hwork, SW_HIDE)
                 return False
             return True
 
-        # 开始嵌入窗口
         SetParent(hApplication, hProgman)
-
-        EnumWindows(find_workerw2, 0)
+        EnumWindows(EnumWindowsProc, None)
 
     elif int(version().split('.')[2]) >= 22000:
         print("Windows 11")
@@ -384,7 +384,6 @@ def main():
     if is_program_running("ffplay.exe"):
         messagebox.showinfo("PhiWallpaper", "PhiWallpaper已经在系统托盘中了")
         sys.exit()
-
     PlayWallpaper()  # 启动动态壁纸
     menu_p = (
         ("打开PhiWallpaper", None, open_window),

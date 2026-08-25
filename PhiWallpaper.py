@@ -7,7 +7,6 @@ PhiWallpaper
 
 开发者: YourClassmateChen(呈阶梯状分布)
 开发环境: Python 3.11 64-bit
-本程序遵守 CC BY-SA 4.0 知识共享许可协议~
 """
 # 开始引入原生库
 from threading import Thread

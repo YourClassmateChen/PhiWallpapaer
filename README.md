@@ -12,7 +12,7 @@ PhiWallpaper——基于Python的动态壁纸软件
 获取源码克隆本仓库到本地<br>
 <a href="http://106.53.213.36/信息技术の教程/phiwallpaper使用指南">Wordpress博客-PhiWallpaper使用指南</a><br>
 当前已适配Windows11-24H2-26000的更新<br>
-最新版本兼容Windows 11 24H2+ / Windows 11 24H2- / Windows 10<br>
+最新版本兼容 Windows 10 / Windows 11<br>
 启动程序后请查看系统托盘<br>
 本程序结构太乱了，如果没大佬帮忙重构，大概率不会再有更新
 

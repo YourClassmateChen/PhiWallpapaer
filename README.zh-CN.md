@@ -2,6 +2,8 @@
 
 ![GitHub stars](https://img.shields.io/github/stars/YourClassmateChen/PhiWallpaper?style=flat-square) ![GitHub forks](https://img.shields.io/github/forks/YourClassmateChen/PhiWallpaper?style=flat-square) ![GitHub issues](https://img.shields.io/github/issues/YourClassmateChen/PhiWallpaper?style=flat-square)  ![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white&style=flat-square)
 
+[English](./README.md) | [中文](./README.zh-CN.md)
+
 PhiWallpaper——基于Python的动态壁纸软件
 
 ## 简单介绍

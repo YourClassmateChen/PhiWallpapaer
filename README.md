@@ -1,6 +1,6 @@
 # PhiWallpapaer
 
-![GitHub stars](https://img.shields.io/github/stars/YourClassmateChen/PhiWallpaper?style=flat-square) ![GitHub forks](https://img.shields.io/github/forks/YourClassmateChen/PhiWallpaper?style=flat-square) ![GitHub issues](https://img.shields.io/github/issues/YourClassmateChen/PhiWallpaper?style=flat-square) ![License](https://img.shields.io/badge/license-GPL-3.0-blue?style=flat-square) ![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white&style=flat-square)
+![GitHub stars](https://img.shields.io/github/stars/YourClassmateChen/PhiWallpaper?style=flat-square) ![GitHub forks](https://img.shields.io/github/forks/YourClassmateChen/PhiWallpaper?style=flat-square) ![GitHub issues](https://img.shields.io/github/issues/YourClassmateChen/PhiWallpaper?style=flat-square)  ![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white&style=flat-square)
 
 PhiWallpaper——基于Python的动态壁纸软件
 

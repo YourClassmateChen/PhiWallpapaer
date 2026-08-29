@@ -1,12 +1,13 @@
 # -*- coding: UTF-8 -*-
 """
 PhiWallpaper
-版本: v0.2.1-beta.1
-开发版本: v0.2.1-beta.1 第1次开发
-最后维护时间: 2026.8.25 00:55
+版本: v0.2.1-beta.2
+开发版本: v0.2.1-beta.2 第1次开发
+最后维护时间: 2026.8.29 18:28
 
 开发者: YourClassmateChen(呈阶梯状分布)
 开发环境: Python 3.11 64-bit
+本程序遵守 GPL-3.0 知识共享许可协议
 """
 # 开始引入原生库
 from threading import Thread
@@ -22,6 +23,7 @@ from winreg import HKEY_CURRENT_USER, KEY_SET_VALUE, KEY_ALL_ACCESS, KEY_WRITE, 
 from tkinter import Tk, Label, messagebox, Button, filedialog, Canvas
 from tkinter.ttk import Notebook, Frame, Style
 from ctypes import create_unicode_buffer, windll, byref
+from pystray import MenuItem, Icon, Menu
 
 # 开始引入第三方库
 from win32con import GWL_EXSTYLE, GWL_STYLE, WS_EX_LAYERED, WS_POPUP, WS_CHILD, WS_VISIBLE, HWND_TOP, HWND_BOTTOM, \
@@ -226,7 +228,7 @@ def PlayWallpaper() -> None:
         system_vision = "Windows 10"
 
         def EnumWindowsProc(h, l):
-            hdef = FindWindow(h, None, "SHELLDLL_DefView", None)
+            hdef = FindWindowEx(h, None, "SHELLDLL_DefView", None)
             if hdef:
                 hwork = FindWindowEx(None, h, "WorkerW", None)
                 ShowWindow(hwork, SW_HIDE)
@@ -377,6 +379,19 @@ startinfo_value = STARTUPINFO()  # 创建启动信息对象
 startinfo_value.dwFlags |= STARTF_USESHOWWINDOW  # 使用显示类窗口属性
 startinfo_value.wShowWindow = SW_HIDE  # 设置不显示窗口
 
+def action(icon, item):
+    i = str(item)
+    if i == "打开PhiWallpaper":
+        open_window()
+    elif i == "开启/关闭壁纸":
+        MainWallpaper()
+    elif i == "退出":
+        icon.stop()
+        AllExit()
+        sys.exit(0)
+
+def create_image():
+    return Image.open(path_build(r"lib\icon.ico"))
 
 def main():
     # 防止多开
@@ -384,21 +399,16 @@ def main():
         messagebox.showinfo("PhiWallpaper", "PhiWallpaper已经在系统托盘中了")
         sys.exit()
     PlayWallpaper()  # 启动动态壁纸
-    menu_p = (
-        ("打开PhiWallpaper", None, open_window),
-        ("开启/关闭壁纸", None, MainWallpaper)
-    )  # 菜单栏设置
-    systray = SysTrayIcon(path_build(r"lib\icon.ico"), "PhiWallpaper", menu_p, on_quit=AllExit)  # 设置托盘对象
-    systray.start()  # 启动托盘
+    stray_menu = Menu(
+        MenuItem("打开PhiWallpaper", action=action),
+        MenuItem("开启/关闭壁纸", action=action),
+        MenuItem("退出", action=action)
+    )
+    systray = Icon("PhiWallpaper", create_image(), "PhiWallpaper", stray_menu)
+    systray.run()  # 启动托盘
 
-
-# 开始主程序循环
-
-if __name__ == '__main__':  # 程序启动
-    main_thread = Thread(target=main, daemon=True)
-    main_thread.start()
-    main_thread.join()
-
+def MainWindowThread():
+    global main_window
     main_window = Tk()
     main_window.withdraw()
 
@@ -434,36 +444,35 @@ if __name__ == '__main__':  # 程序启动
     main_notebook.add(frame_set, text="设置")
 
     # 主页
-    Label(frame_main, text="PhiWallpaper", font=("思源黑体 CN Regular", 30), anchor="w", fg="#5599FF", bg="#99FFFF").grid(
+    Label(frame_main, text="PhiWallpaper", font=("思源黑体 CN Regular", 30), anchor="w", fg="#5599FF",
+          bg="#99FFFF").grid(
         row=0, column=1, sticky="w")  # 标题
-    Label(frame_main, text="版本:v0.2.0-beta.1", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=1, column=1,
-                                                                                            sticky="w")  # 版本
-    Label(frame_main, text=f"系统:{system_vision}", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=2, column=1,
-                                                                                               sticky="w")  # 系统
-    Label(frame_main, text="当前壁纸:", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=0, column=2, sticky="nw")
+    Label(frame_main, text="版本:v0.2.0-beta.1", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=1,
+                                                                                                          column=1,
+                                                                                                          sticky="w")  # 版本
+    Label(frame_main, text=f"系统:{system_vision}", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=2,
+                                                                                                             column=1,
+                                                                                                             sticky="w")  # 系统
+    Label(frame_main, text="当前壁纸:", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=0, column=2,
+                                                                                                 sticky="nw")
     Lable_video_image = Label(frame_main, image=video_image, anchor="e")
     Lable_video_image.grid(row=0, column=3, rowspan=99, sticky="e")
     Button(frame_main, text="开启/关闭动态壁纸", font=("微软雅黑 Light",), anchor="w", command=MainWallpaper).grid(
         row=3, column=1,
         sticky="w")
 
-
     # 关于
     def ABOUT_open_github():
         open_new_tab(r'https://github.com/YourClassmateChen/PhiWallpaper')
 
-
     def ABOUT_open_bilibili():
         open_new_tab(r'https://space.bilibili.com/1996208073')  # 打开bilibili主页
-
 
     def ABOUT_open_blog():
         open_new_tab(r'http://106.53.213.36/')  # 打开博客主页
 
-
     def ABOUT_open_guide():
         open_new_tab(r'http://106.53.213.36/信息技术の教程/PhiWallpaper使用指南')  # 打开使用指南
-
 
     Label(frame_about, text=about_info, font=("微软雅黑 Light", 16), anchor="w", justify="left", bg="#99FFFF").grid(
         row=0, column=0, columnspan=999, sticky="w")
@@ -475,7 +484,6 @@ if __name__ == '__main__':  # 程序启动
         row=1, column=2)
     Button(frame_about, text="使用指南", command=ABOUT_open_guide, height=1, width=15, font=("微软雅黑 Light",)).grid(
         row=1, column=3)
-
 
     # 设置
     def SET_start():
@@ -489,7 +497,6 @@ if __name__ == '__main__':  # 程序启动
             SetValueEx(key, "PhiWallpaper", 0, REG_SZ, realpath(sys.argv[0]))  # 添加PhiWallpaper键
             messagebox.showinfo("PhiWallpaper", "已设置开机自启")
         CloseKey(key)  # 关闭注册表
-
 
     def SET_change_wallpaper():
         global is_playing, video_image  # 关联全局变量is_playing
@@ -510,7 +517,6 @@ if __name__ == '__main__':  # 程序启动
                 pass  # pass
             return
 
-
     Label(frame_set, text=about_info, font=("微软雅黑 Light", 16), anchor="w", justify="left", bg="#99FFFF").grid(
         row=0, column=0, columnspan=999, sticky="w")
     Button(frame_set, text="设置/取消开机自启", command=SET_start, height=1, width=17, font=("微软雅黑 Light",)
@@ -519,3 +525,15 @@ if __name__ == '__main__':  # 程序启动
            ).grid(row=1, column=1)
 
     main_window.mainloop()
+
+
+# 开始主程序循环
+
+if __name__ == '__main__':  # 程序启动
+    main_thread = Thread(target=main, daemon=True)
+    main_thread.start()
+    # main_thread.join()
+    main_thread2 = Thread(target=MainWindowThread, daemon=True)
+    main_thread2.start()
+    main_thread2.join()
+

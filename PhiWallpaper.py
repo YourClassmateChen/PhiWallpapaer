@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
 """
 PhiWallpaper
-版本: v0.2.1-beta.2
-开发版本: v0.2.1-beta.2 第4次开发
-最后维护时间: 2026.8.30 00:05
+版本: v0.2.2-beta.1
+开发版本: v0.2.2-beta.1 第1次开发
+最后维护时间: 2026.8.30 01:29
 
 开发者: YourClassmateChen(呈阶梯状分布)
 开发环境: Python 3.11 64-bit
@@ -21,7 +21,7 @@ from subprocess import STARTUPINFO, Popen, DEVNULL, STARTF_USESHOWWINDOW, SW_HID
 from winreg import HKEY_CURRENT_USER, KEY_SET_VALUE, KEY_ALL_ACCESS, KEY_WRITE, KEY_CREATE_SUB_KEY, REG_SZ, \
     SetValueEx, CloseKey, DeleteValue, OpenKey
 from tkinter import Tk, Label, messagebox, Button, filedialog, Canvas
-from tkinter.ttk import Notebook, Frame, Style
+from tkinter.ttk import Notebook, Frame, Style, Button as TButton
 from ctypes import create_unicode_buffer, windll, byref
 from pystray import MenuItem, Icon, Menu
 
@@ -32,9 +32,9 @@ from win32con import GWL_EXSTYLE, GWL_STYLE, WS_EX_LAYERED, WS_POPUP, WS_CHILD, 
 from win32gui import GetDC, GetWindowLong, SetWindowLong, SetParent, FindWindow, SendMessage, FindWindowEx, \
     MoveWindow, ShowWindow, RedrawWindow, SetWindowPos, SetLayeredWindowAttributes, GetClientRect, EnumWindows
 from win32print import GetDeviceCaps
-from psutil import process_iter
+from psutil import process_iter, NoSuchProcess, AccessDenied, ZombieProcess
 from cv2 import VideoCapture, cvtColor, COLOR_BGR2RGB, resize
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageFilter, ImageEnhance
 from pathlib import Path
 
 
@@ -45,6 +45,7 @@ class PhiWallpaperApp:
 
     def __init__(self):
         # 初始化实例变量
+        self.status_var_text = None
         self.Lable_video_image = None
         self.about_info = ""
         self.is_playing = True
@@ -55,6 +56,8 @@ class PhiWallpaperApp:
         self.systray = None
         self.main_window = None
         self.video_image = None
+        self.status_label_dynamic = None  # 动态状态标签
+        self.bg_image = None  # 模糊暗色背景图
 
         # 读取关于信息
         with open(self.path_build("lib/about_info.txt"), "r", encoding="utf-8") as f:
@@ -119,7 +122,7 @@ class PhiWallpaperApp:
 
     def toImage(self, path):
         """
-        转化视频路径为视频第一帧图像
+        转化视频路径为视频第一帧图像（预览缩略图）
         :param path: 视频路径
         :return: ImageTk.PhotoImage对象
         """
@@ -139,6 +142,28 @@ class PhiWallpaperApp:
         return ImageTk.PhotoImage(
             Image.fromarray(cvtColor(img, COLOR_BGR2RGB)).resize((w, h))
         )
+
+    def create_blurred_background(self, path, width=800, height=500):
+        """
+        生成模糊暗色的背景图
+        :param path: 视频路径
+        :param width: 窗口宽度
+        :param height: 窗口高度
+        :return: ImageTk.PhotoImage对象
+        """
+        cap = VideoCapture(path)
+        ret, frame = cap.read()
+        cap.release()
+        if ret:
+            img = Image.fromarray(cvtColor(frame, COLOR_BGR2RGB))
+            img = img.resize((width, height), Image.LANCZOS)
+            img = img.filter(ImageFilter.GaussianBlur(10))
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(0.5)  # 暗色
+            return ImageTk.PhotoImage(img)
+        else:
+            # 若读取失败，返回纯色背景
+            return ImageTk.PhotoImage(Image.new('RGB', (width, height), '#222e49'))
 
     def get_window_client_size(self, hwnd: int) -> tuple:
         """
@@ -191,9 +216,14 @@ class PhiWallpaperApp:
         :param program_name: 程序名
         :return:无
         """
-        for process in process_iter(['name']):
-            if process.info['name'] == program_name:
-                return True
+        for proc in process_iter(['name']):
+            try:
+                # 获取进程名并比较
+                if proc.info['name'] == program_name:
+                    return True
+            except (NoSuchProcess, AccessDenied, ZombieProcess):
+                # 忽略进程已终止、无权限或僵尸进程等异常，继续遍历
+                continue
         return False
 
     # ==================== 过程型函数 ====================
@@ -362,6 +392,9 @@ class PhiWallpaperApp:
         elif self.is_playing is True:
             self.is_playing = False
             self.StopPlay()
+        # 更新状态标签
+        if hasattr(self, 'status_label_dynamic') and self.status_label_dynamic is not None:
+            self.status_label_dynamic.config(text="播放中" if self.is_playing else "已停止")
 
     def AllExit(self):
         """
@@ -396,7 +429,7 @@ class PhiWallpaperApp:
         启动托盘图像
         :return: 无
         """
-        if self.is_program_running("ffplay.exe"):
+        if self.is_program_running("PhiWallpaper.exe"):
             messagebox.showinfo("PhiWallpaper", "PhiWallpaper已经在系统托盘中了")
             sys.exit()
 
@@ -414,58 +447,125 @@ class PhiWallpaperApp:
     def main_window_thread(self) -> None:
         """
         tkinter窗口设置
-        :return:
+        :return:无
         """
         self.main_window = Tk()
         self.main_window.withdraw()
-
-        style = Style()
-        style.configure('TFrame', background="#99FFFF")
-        style.configure("TNotebook.Tab", borderwidth=0)
-        style.configure("TNotebook", borderwidth=0)
-
-        self.video_image = self.toImage(self.path_video)
         self.main_window.title("PhiWallpaper")
-        self.main_window.geometry("768x432")
-        self.main_window.configure(background="#AAFFEE")
+        self.main_window.geometry("800x500")
+        self.main_window.configure(background="#222e49")  # 深蓝紫色背景
         self.main_window.iconbitmap(self.path_build(r"lib\icon.ico"))
         self.main_window.resizable(0, 0)
         self.main_window.protocol("WM_DELETE_WINDOW", self.main_window.withdraw)
 
+        # 生成模糊暗色背景图并铺满窗口
+        self.bg_image = self.create_blurred_background(self.path_video, 800, 500)
+        bg_label = Label(self.main_window, image=self.bg_image)
+        bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+        # 现代化样式配置（深蓝紫色调）
+        style = Style()
+        style.theme_use('clam')
+        # Notebook样式
+        style.configure('TNotebook', background='#222e49', borderwidth=0)
+        style.configure('TNotebook.Tab', background='#2a3b5c', foreground='#ffffff', padding=[10, 5],
+                        font=('微软雅黑', 10), borderwidth=0, focuscolor='none')
+        style.map('TNotebook.Tab',
+                  background=[('selected', '#3b4f73'), ('active', '#314568')],
+                  foreground=[('selected', '#ffffff')])
+        # Frame样式
+        style.configure('TFrame', background='#222e49')
+        # Label样式
+        style.configure('TLabel', background='#222e49', foreground='#e0e0e0', font=('微软雅黑', 10))
+        # 按钮样式
+        style.configure('Modern.TButton', background='#1a73e8', foreground='white', font=('微软雅黑', 10),
+                        borderwidth=0, focusthickness=0, padding=(15, 8))
+        style.map('Modern.TButton',
+                  background=[('active', '#1765cc'), ('pressed', '#1558b0')],
+                  foreground=[('disabled', '#b0b0b0')])
+        # 次级按钮样式
+        style.configure('Secondary.TButton', background='#2a3b5c', foreground='#e0e0e0', font=('微软雅黑', 10),
+                        borderwidth=0, focusthickness=0, padding=(15, 8))
+        style.map('Secondary.TButton',
+                  background=[('active', '#314568'), ('pressed', '#3b4f73')])
+
+        # 加载壁纸预览图
+        self.video_image = self.toImage(self.path_video)
+
         messagebox.showinfo("PhiWallpaper", "PhiWallpaper已启动于系统托盘")
 
-        main_notebook = Notebook(self.main_window, padding=(0, 0, 0, 0))
-        main_notebook.place(x=0, y=0)
+        # 主Notebook，使用place放置在窗口中央，留出边缘显示背景
+        main_notebook = Notebook(self.main_window, padding=(10, 5))
+        main_notebook.place(relx=0.5, rely=0.5, anchor="center", width=760, height=440)
 
-        frame_main = Frame(main_notebook, padding=(0, 0, 0, 0))
+        # ========== 主页标签 ==========
+        frame_main = Frame(main_notebook, padding=(20, 20), style='TFrame')
         frame_main.pack(fill="both", expand=True)
 
-        frame_about = Frame(main_notebook)
+        # 左侧信息区
+        left_frame = Frame(frame_main, style='TFrame')
+        left_frame.grid(row=0, column=0, sticky="nw")
+
+        # 标题
+        title_label = Label(left_frame, text="PhiWallpaper", font=('微软雅黑', 24, 'bold'),
+                            fg="#1a73e8", bg="#222e49")
+        title_label.grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        # 版本信息
+        version_label = Label(left_frame, text=f"版本：{self.phiwallpaper_vision}",
+                              font=('微软雅黑', 10), fg="#b0b0b0", bg="#222e49")
+        version_label.grid(row=1, column=0, sticky="w", pady=2)
+
+        # 系统信息
+        system_label = Label(left_frame, text=f"系统：{self.system_vision}",
+                             font=('微软雅黑', 10), fg="#b0b0b0", bg="#222e49")
+        system_label.grid(row=2, column=0, sticky="w", pady=2)
+
+        # 当前壁纸状态
+        status_label = Label(left_frame, text="当前壁纸状态：", font=('微软雅黑', 10, 'bold'),
+                             fg="#e0e0e0", bg="#222e49")
+        status_label.grid(row=3, column=0, sticky="w", pady=(20, 5))
+
+        self.status_var_text = "播放中" if self.is_playing else "已停止"
+        self.status_label_dynamic = Label(left_frame, text=self.status_var_text,
+                                          font=('微软雅黑', 10), fg="#1a73e8", bg="#222e49")
+        self.status_label_dynamic.grid(row=4, column=0, sticky="w")
+
+        # 按钮区域
+        button_frame = Frame(left_frame, style='TFrame')
+        button_frame.grid(row=5, column=0, sticky="w", pady=(30, 0))
+
+        toggle_btn = TButton(button_frame, text="开启/关闭动态壁纸", command=self.MainWallpaper,
+                             style='Modern.TButton')
+        toggle_btn.pack(side="left", padx=(0, 10))
+
+        # 右侧预览区
+        right_frame = Frame(frame_main, style='TFrame')
+        right_frame.grid(row=0, column=1, sticky="ne", padx=(40, 0))
+
+        preview_label = Label(right_frame, text="壁纸预览", font=('微软雅黑', 10, 'bold'),
+                              fg="#b0b0b0", bg="#222e49")
+        preview_label.pack(anchor="nw", pady=(0, 10))
+
+        self.Lable_video_image = Label(right_frame, image=self.video_image, anchor="center",
+                                       bg="#222e49", relief="solid", bd=1)
+        self.Lable_video_image.pack()
+
+        # 调整布局
+        frame_main.columnconfigure(0, weight=1)
+        frame_main.columnconfigure(1, weight=1)
+
+        # ========== 关于标签 ==========
+        frame_about = Frame(main_notebook, padding=(20, 20), style='TFrame')
         frame_about.pack(fill="both", expand=True)
 
-        frame_set = Frame(main_notebook)
-        frame_set.pack(fill="both", expand=True)
+        about_text = Label(frame_about, text=self.about_info, font=('微软雅黑', 11),
+                           fg="#e0e0e0", bg="#222e49", justify="left", wraplength=700)
+        about_text.pack(anchor="w", pady=(0, 20))
 
-        main_notebook.add(frame_main, text="主页")
-        main_notebook.add(frame_about, text="关于")
-        main_notebook.add(frame_set, text="设置")
+        about_buttons_frame = Frame(frame_about, style='TFrame')
+        about_buttons_frame.pack(anchor="w", pady=10)
 
-        # 主页
-        Label(frame_main, text="PhiWallpaper", font=("思源黑体 CN Regular", 30), anchor="w", fg="#5599FF",
-              bg="#99FFFF").grid(row=0, column=1, sticky="w")
-        Label(frame_main, text=f"版本:{self.phiwallpaper_vision}", font=("微软雅黑 Light",), anchor="w",
-              bg="#99FFFF").grid(row=1, column=1, sticky="w")
-        Label(frame_main, text=f"系统:{self.system_vision}", font=("微软雅黑 Light",), anchor="w",
-              bg="#99FFFF").grid(row=2, column=1, sticky="w")
-        Label(frame_main, text="当前壁纸:", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=0, column=2,
-                                                                                                     sticky="nw")
-        self.Lable_video_image = Label(frame_main, image=self.video_image, anchor="e")
-        self.Lable_video_image.grid(row=0, column=3, rowspan=99, sticky="e")
-        Button(frame_main, text="开启/关闭动态壁纸", font=("微软雅黑 Light",), anchor="w",
-               command=self.MainWallpaper).grid(
-            row=3, column=1, sticky="w")
-
-        # 关于
         def ABOUT_open_github():
             open_new_tab(r'https://github.com/YourClassmateChen/PhiWallpaper')
 
@@ -478,18 +578,31 @@ class PhiWallpaperApp:
         def ABOUT_open_guide():
             open_new_tab(r'http://106.53.213.36/信息技术の教程/PhiWallpaper使用指南')
 
-        Label(frame_about, text=self.about_info, font=("微软雅黑 Light", 16), anchor="w", justify="left",
-              bg="#99FFFF").grid(row=0, column=0, columnspan=999, sticky="w")
-        Button(frame_about, text="项目地址", command=ABOUT_open_github, height=1, width=15,
-               font=("微软雅黑 Light",)).grid(row=1, column=0)
-        Button(frame_about, text="bilibili主页", command=ABOUT_open_bilibili, height=1, width=15,
-               font=("微软雅黑 Light",)).grid(row=1, column=1)
-        Button(frame_about, text="个人博客", command=ABOUT_open_blog, height=1, width=15,
-               font=("微软雅黑 Light",)).grid(row=1, column=2)
-        Button(frame_about, text="使用指南", command=ABOUT_open_guide, height=1, width=15,
-               font=("微软雅黑 Light",)).grid(row=1, column=3)
+        # 次级按钮
+        btn_github = TButton(about_buttons_frame, text="项目地址", command=ABOUT_open_github,
+                             style='Secondary.TButton')
+        btn_github.pack(side="left", padx=(0, 10))
 
-        # 设置
+        btn_bilibili = TButton(about_buttons_frame, text="bilibili主页", command=ABOUT_open_bilibili,
+                               style='Secondary.TButton')
+        btn_bilibili.pack(side="left", padx=(0, 10))
+
+        btn_blog = TButton(about_buttons_frame, text="个人博客", command=ABOUT_open_blog,
+                           style='Secondary.TButton')
+        btn_blog.pack(side="left", padx=(0, 10))
+
+        btn_guide = TButton(about_buttons_frame, text="使用指南", command=ABOUT_open_guide,
+                            style='Secondary.TButton')
+        btn_guide.pack(side="left")
+
+        # ========== 设置标签 ==========
+        frame_set = Frame(main_notebook, padding=(20, 20), style='TFrame')
+        frame_set.pack(fill="both", expand=True)
+
+        settings_frame = Frame(frame_set, style='TFrame')
+        settings_frame.pack(anchor="w", pady=(0, 20))
+
+        # 开机自启
         def SET_start():
             key = OpenKey(HKEY_CURRENT_USER, "Software\Microsoft\Windows\CurrentVersion\Run",
                           KEY_SET_VALUE, KEY_ALL_ACCESS | KEY_WRITE | KEY_CREATE_SUB_KEY)
@@ -501,6 +614,7 @@ class PhiWallpaperApp:
                 messagebox.showinfo("PhiWallpaper", "已设置开机自启")
             CloseKey(key)
 
+        # 修改壁纸
         def SET_change_wallpaper():
             path = filedialog.askopenfilename(filetypes=[("视频文件", "*.mp4")], title="PhiWallpaper")
             if not path:
@@ -508,23 +622,49 @@ class PhiWallpaperApp:
             else:
                 with open(self.path_build(r"lib\path_video.txt"), "w", encoding="utf-8") as f:
                     f.write(path)
-                messagebox.showinfo("PhiWallpaper", "动态壁纸修改成功!请启动壁纸")
+                messagebox.showinfo("PhiWallpaper", "动态壁纸修改成功!请点击确认生效")
                 self.reread_video_path()
                 self.video_image = self.toImage(self.path_video)
                 self.Lable_video_image.configure(image=self.video_image)
+                # 更新背景图
+                self.bg_image = self.create_blurred_background(self.path_video, 800, 500)
+                bg_label.configure(image=self.bg_image)
                 if self.is_playing is True:
-                    self.is_playing = False
                     self.StopPlay()
+                    while self.is_program_running("ffplay.exe"):
+                        pass
+                    self.PlayWallpaper()
                 elif self.is_playing is False:
                     pass
                 return
 
-        Label(frame_set, text=self.about_info, font=("微软雅黑 Light", 16), anchor="w", justify="left",
-              bg="#99FFFF").grid(row=0, column=0, columnspan=999, sticky="w")
-        Button(frame_set, text="设置/取消开机自启", command=SET_start, height=1, width=17,
-               font=("微软雅黑 Light",)).grid(row=1, column=0)
-        Button(frame_set, text="修改动态壁纸", command=SET_change_wallpaper, height=1, width=15,
-               font=("微软雅黑 Light",)).grid(row=1, column=1)
+        # 设置项：开机自启
+        auto_start_row = Frame(settings_frame, style='TFrame')
+        auto_start_row.pack(fill="x", pady=5)
+        Label(auto_start_row, text="开机自启：", font=('微软雅黑', 10), bg="#222e49", fg="#e0e0e0").pack(side="left")
+        btn_autostart = TButton(auto_start_row, text="设置/取消", command=SET_start,
+                                style='Secondary.TButton')
+        btn_autostart.pack(side="left", padx=10)
+
+        # 设置项：修改壁纸
+        change_wallpaper_row = Frame(settings_frame, style='TFrame')
+        change_wallpaper_row.pack(fill="x", pady=5)
+        Label(change_wallpaper_row, text="动态壁纸：", font=('微软雅黑', 10), bg="#222e49", fg="#e0e0e0").pack(side="left")
+        btn_change = TButton(change_wallpaper_row, text="选择视频文件", command=SET_change_wallpaper,
+                             style='Modern.TButton')
+        btn_change.pack(side="left", padx=10)
+
+        # 提示
+        note_label = Label(frame_set, text="提示：修改壁纸后需要重新开启壁纸才能生效。",
+                           font=('微软雅黑', 9), fg="#b0b0b0", bg="#222e49")
+        note_label.pack(anchor="w", pady=(10, 0))
+
+        # 将三个页面添加到Notebook
+        main_notebook.add(frame_main, text="主页")
+        main_notebook.add(frame_about, text="关于")
+        main_notebook.add(frame_set, text="设置")
+
+        main_notebook.select(frame_main)
 
         self.main_window.mainloop()
 

@@ -2,8 +2,8 @@
 """
 PhiWallpaper
 版本: v0.2.1-beta.2
-开发版本: v0.2.1-beta.2 第2次开发
-最后维护时间: 2026.8.29 18:49
+开发版本: v0.2.1-beta.2 第3次开发
+最后维护时间: 2026.8.29 19:59
 
 开发者: YourClassmateChen(呈阶梯状分布)
 开发环境: Python 3.11 64-bit
@@ -236,7 +236,10 @@ def PlayWallpaper() -> None:
             return True
 
         SetParent(hApplication, hProgman)
-        EnumWindows(EnumWindowsProc, None)
+        try:
+            EnumWindows(EnumWindowsProc, None)
+        except Exception:
+            pass
 
     elif int(version().split('.')[2]) >= 22000:
         print("Windows 11")
@@ -328,6 +331,11 @@ def PlayWallpaper() -> None:
                 None, None,
                 RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW
             )  # 重绘窗口
+    else:
+        messagebox.showinfo("PhiWallpaper", "你当前的系统并不支持PhiWallpaper")
+        systary.stop()
+        AllExit()
+        sys.exit(0)
 
 
 # 开始定义托盘函数
@@ -395,6 +403,7 @@ def create_image():
     return Image.open(path_build(r"lib\icon.ico"))
 
 def main():
+    global systary
     # 防止多开
     if is_program_running("ffplay.exe"):
         messagebox.showinfo("PhiWallpaper", "PhiWallpaper已经在系统托盘中了")
@@ -531,10 +540,10 @@ def MainWindowThread():
 # 开始主程序循环
 
 if __name__ == '__main__':  # 程序启动
-    main_thread = Thread(target=main, daemon=True)
-    main_thread.start()
-    # main_thread.join()
     main_thread2 = Thread(target=MainWindowThread, daemon=True)
     main_thread2.start()
-    main_thread2.join()
+    main_thread = Thread(target=main, daemon=True)
+    main_thread.start()
+
+    main_thread2.join()  # 必须是这条!
 

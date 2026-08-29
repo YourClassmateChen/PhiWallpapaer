@@ -10,10 +10,11 @@ PhiWallpaper
 本程序遵守 GPL-3.0 知识共享许可协议
 """
 # 开始引入原生库
+from hashlib import md5
 from threading import Thread
 from platform import version
 from os.path import realpath, abspath, dirname, join, exists
-from os import environ
+from os import environ, getpid, chdir
 from webbrowser import open_new_tab
 from time import sleep
 import sys
@@ -32,6 +33,9 @@ from win32con import GWL_EXSTYLE, GWL_STYLE, WS_EX_LAYERED, WS_POPUP, WS_CHILD, 
 from win32gui import GetDC, GetWindowLong, SetWindowLong, SetParent, FindWindow, SendMessage, FindWindowEx, \
     MoveWindow, ShowWindow, RedrawWindow, SetWindowPos, SetLayeredWindowAttributes, GetClientRect, EnumWindows
 from win32print import GetDeviceCaps
+from win32event import CreateMutex
+from win32api import GetLastError
+from winerror import ERROR_ALREADY_EXISTS
 from psutil import process_iter, NoSuchProcess, AccessDenied, ZombieProcess
 from cv2 import VideoCapture, cvtColor, COLOR_BGR2RGB, resize
 from PIL import Image, ImageTk, ImageFilter, ImageEnhance
@@ -212,7 +216,7 @@ class PhiWallpaperApp:
 
     def is_program_running(self, program_name: str) -> None:
         """
-        检测是否多开
+        检测是否正在运行
         :param program_name: 程序名
         :return:无
         """
@@ -429,10 +433,6 @@ class PhiWallpaperApp:
         启动托盘图像
         :return: 无
         """
-        if self.is_program_running("PhiWallpaper.exe"):
-            messagebox.showinfo("PhiWallpaper", "PhiWallpaper已经在系统托盘中了")
-            sys.exit()
-
         self.PlayWallpaper()
 
         stray_menu = Menu(
@@ -491,8 +491,6 @@ class PhiWallpaperApp:
 
         # 加载壁纸预览图
         self.video_image = self.toImage(self.path_video)
-
-        messagebox.showinfo("PhiWallpaper", "PhiWallpaper已启动于系统托盘")
 
         # 主Notebook，使用place放置在窗口中央，留出边缘显示背景
         main_notebook = Notebook(self.main_window, padding=(10, 5))
@@ -649,7 +647,8 @@ class PhiWallpaperApp:
         # 设置项：修改壁纸
         change_wallpaper_row = Frame(settings_frame, style='TFrame')
         change_wallpaper_row.pack(fill="x", pady=5)
-        Label(change_wallpaper_row, text="动态壁纸：", font=('微软雅黑', 10), bg="#222e49", fg="#e0e0e0").pack(side="left")
+        Label(change_wallpaper_row, text="动态壁纸：", font=('微软雅黑', 10), bg="#222e49", fg="#e0e0e0").pack(
+            side="left")
         btn_change = TButton(change_wallpaper_row, text="选择视频文件", command=SET_change_wallpaper,
                              style='Modern.TButton')
         btn_change.pack(side="left", padx=10)
@@ -666,11 +665,21 @@ class PhiWallpaperApp:
 
         main_notebook.select(frame_main)
 
+        messagebox.showinfo("PhiWallpaper", "PhiWallpaper已启动于系统托盘")
+
         self.main_window.mainloop()
 
 
 # ==================== 程序入口 ====================
 if __name__ == '__main__':
+    # 多开检测
+    chdir(dirname(abspath(__file__)))
+    mutex_name = f"Local\\PhiWallpaper"
+    mutex_handle = CreateMutex(None, False, mutex_name)
+    if GetLastError() == ERROR_ALREADY_EXISTS:
+        messagebox.showinfo("PhiWallpaper", "PhiWallpaper已经在系统托盘中了")
+        sys.exit(0)
+
     app = PhiWallpaperApp()
 
     # 启动窗口线程和托盘线程

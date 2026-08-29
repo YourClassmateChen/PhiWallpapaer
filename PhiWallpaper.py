@@ -2,8 +2,8 @@
 """
 PhiWallpaper
 版本: v0.2.1-beta.2
-开发版本: v0.2.1-beta.2 第1次开发
-最后维护时间: 2026.8.29 18:28
+开发版本: v0.2.1-beta.2 第2次开发
+最后维护时间: 2026.8.29 18:49
 
 开发者: YourClassmateChen(呈阶梯状分布)
 开发环境: Python 3.11 64-bit
@@ -371,6 +371,7 @@ with open(path_build("lib/about_info.txt"), "r", encoding="utf-8") as f:
 is_playing = True  # 01广播 指示是否正在播放
 system_vision = ""
 path_video = ""
+phiwallpaper_vision = "v0.2.1-beta.2"
 reread_video_path()
 
 load_font(path_build('lib/SHSSHR.ttf'))
@@ -447,7 +448,7 @@ def MainWindowThread():
     Label(frame_main, text="PhiWallpaper", font=("思源黑体 CN Regular", 30), anchor="w", fg="#5599FF",
           bg="#99FFFF").grid(
         row=0, column=1, sticky="w")  # 标题
-    Label(frame_main, text="版本:v0.2.0-beta.1", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=1,
+    Label(frame_main, text=f"版本:{phiwallpaper_vision}", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=1,
                                                                                                           column=1,
                                                                                                           sticky="w")  # 版本
     Label(frame_main, text=f"系统:{system_vision}", font=("微软雅黑 Light",), anchor="w", bg="#99FFFF").grid(row=2,
